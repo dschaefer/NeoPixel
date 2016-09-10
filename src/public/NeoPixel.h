@@ -3,12 +3,18 @@
 
 #include <stdint.h>
 
+#if defined(ESP8266)
+typedef uint32_t cycles_t;
+#elif defined(__QNX__)
+typedef uint32_t cycles_t;
+#endif
+
 class NeoPixel {
 public:
-	NeoPixel(uint8_t numPixels, uint8_t pin);
+	NeoPixel(uint32_t numPixels, uint32_t pin);
 	~NeoPixel();
 
-	void setPixel(uint8_t pixel, uint8_t r, uint8_t g, uint8_t b) {
+	void setPixel(uint32_t pixel, uint8_t r, uint8_t g, uint8_t b) {
 		// grb
 		pixels[pixel * 3 + 0] = g;
 		pixels[pixel * 3 + 1] = r;
@@ -19,9 +25,13 @@ public:
 
 private:
 	uint8_t *pixels;
-	uint8_t numPixels;
-	uint8_t pin;
-	uint32_t lastTime;
+	uint32_t numPixels;
+	uint32_t pin;
+	cycles_t hitime0, hitime1, cycleTime;
+
+#if defined(__QNX__)
+	uint8_t *gpio;
+#endif
 };
 
 #endif // _NEOPIXEL_H_
