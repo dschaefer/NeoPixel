@@ -110,7 +110,9 @@ NeoPixel::NeoPixel(uint32_t _numPixels, uint32_t _pin) {
 
 NeoPixel::~NeoPixel() {
 	free(pixels);
+#if defined(__QNX__)
 	munmap_device_memory(gpio, 0x1000);
+#endif
 }
 
 void IRAM_ATTR NeoPixel::show() {
