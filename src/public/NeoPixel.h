@@ -2,6 +2,7 @@
 #define _NEOPIXEL_H_
 
 #include <stdint.h>
+#include <GPIO.h>
 
 #if defined(ESP8266)
 typedef uint32_t cycles_t;
@@ -23,7 +24,10 @@ public:
 
 	void show();
 
+	uint32_t getNumPixels() { return numPixels; }
+
 private:
+	GPIO gpio;
 	uint8_t *pixels;
 	uint32_t numPixels;
 	uint32_t pin;

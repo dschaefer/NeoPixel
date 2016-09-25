@@ -5,29 +5,7 @@
 
 #ifdef ESP8266
 #include <esp_common.h>
-#include <freertos/FreeRTOS.h>
-
-static struct {
-	volatile uint32_t pin;
-	uint32_t func;
-} pinMap[16] = {
-		{ PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0 },	// 0
-		{ PERIPHS_IO_MUX_U0TXD_U, FUNC_GPIO1 },	// 1
-		{ PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2 },	// 2
-		{ PERIPHS_IO_MUX_U0RXD_U, FUNC_GPIO3 },	// 3
-		{ PERIPHS_IO_MUX_GPIO4_U, FUNC_GPIO4 },	// 4
-		{ PERIPHS_IO_MUX_GPIO5_U, FUNC_GPIO5 },	// 5
-		{ PERIPHS_IO_MUX_SD_CLK_U, FUNC_GPIO6 },	// 6
-		{ PERIPHS_IO_MUX_SD_DATA0_U, FUNC_GPIO7 },	// 7
-		{ PERIPHS_IO_MUX_SD_DATA1_U, FUNC_GPIO8 },	// 8
-		{ PERIPHS_IO_MUX_SD_DATA2_U, FUNC_GPIO9 },	// 9
-		{ PERIPHS_IO_MUX_SD_DATA3_U, FUNC_GPIO10 },	// 10
-		{ PERIPHS_IO_MUX_SD_CMD_U, FUNC_GPIO11 },	// 11
-		{ PERIPHS_IO_MUX_MTDI_U, FUNC_GPIO12 },	// 12
-		{ PERIPHS_IO_MUX_MTCK_U, FUNC_GPIO13 },	// 13
-		{ PERIPHS_IO_MUX_MTMS_U, FUNC_GPIO14 },	// 14
-		{ PERIPHS_IO_MUX_MTDO_U, FUNC_GPIO15 },	// 15
-};
+#include <GPIO.h>
 
 static cycles_t getClockCycles(void) __attribute__((always_inline));
 static inline cycles_t getClockCycles(void) {
@@ -60,9 +38,10 @@ static inline cycles_t getClockCycles(void) {
 
 #endif
 
-NeoPixel::NeoPixel(uint32_t _numPixels, uint32_t _pin) {
-	numPixels = _numPixels;
-	pin = _pin;
+NeoPixel::NeoPixel(uint32_t _numPixels, uint32_t _pin)
+: numPixels(_numPixels)
+, pin(_pin) {
+	gpio.pinMode(_pin, GPIO::Output);
 
 	pixels = (uint8_t *) malloc(numPixels * 3);
 	for (int i = 0; i < _numPixels; ++i) {
@@ -71,8 +50,7 @@ NeoPixel::NeoPixel(uint32_t _numPixels, uint32_t _pin) {
 
 	// set up pin and timers
 #if defined(ESP8266)
-	PIN_FUNC_SELECT(pinMap[pin].pin, pinMap[pin].func);
-	GPIO_REG_WRITE(GPIO_ENABLE_W1TS_ADDRESS, BIT(pin));
+	// clear the pin
 	GPIO_REG_WRITE(GPIO_OUT_W1TC_ADDRESS, BIT(pin));
 
 	cycles_t cpuFreq = system_get_cpu_freq() * 1000000;
