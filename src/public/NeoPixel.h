@@ -32,10 +32,6 @@ private:
 	uint32_t numPixels;
 	uint32_t pin;
 	cycles_t hitime0, hitime1, cycleTime;
-
-#if defined(__QNX__)
-	uint8_t *gpio;
-#endif
 };
 
 #endif // _NEOPIXEL_H_
