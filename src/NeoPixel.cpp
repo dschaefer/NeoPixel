@@ -18,13 +18,11 @@ void usleep(int usecs) {
 	cycles_t start = getClockCycles();
 	while (getClockCycles() - start < usecs);
 }
-
-#define InterruptDisable taskDISABLE_INTERRUPTS
-#define InterruptEnable taskENABLE_INTERRUPTS
 #elif defined(__QNX__)
 #include <sys/neutrino.h>
 #include <sys/syspage.h>
 #include <sys/mman.h>
+#include <sys/procmgr.h>
 #define IRAM_ATTR
 #define HW_WRITE32(reg, value) *((volatile uint32_t *) (reg)) = value;
 #define HW_READ32(reg) (*((volatile uint32_t *)(reg)))
@@ -38,11 +36,11 @@ static inline cycles_t getClockCycles(void) {
 
 #endif
 
-NeoPixel::NeoPixel(uint32_t _numPixels, uint32_t _pin)
+NeoPixel::NeoPixel(uint32_t _numPixels, uint8_t _pin)
 : numPixels(_numPixels)
 , pin(_pin) {
-	gpio.pinMode(_pin, GPIO::Output);
-	gpio.digitalWrite(_pin, GPIO::Low);
+	pin.pinMode(GPIO::Output);
+	pin.digitalWrite(GPIO::Low);
 
 	pixels = (uint8_t *) malloc(numPixels * 3);
 	for (int i = 0; i < _numPixels; ++i) {
@@ -53,8 +51,9 @@ NeoPixel::NeoPixel(uint32_t _numPixels, uint32_t _pin)
 	cycles_t cpuFreq;
 #if defined(ESP8266)
 	cpuFreq = system_get_cpu_freq() * 1000000;
-#elif defined(__QNX__)
+#elif defined(__QNXNTO__)
 	// Enable the cycle clock
+	procmgr_ability(0, PROCMGR_AID_IO);
 	ThreadCtl(_NTO_TCTL_IO_PRIV, NULL);
 	asm volatile ("mcr p15, 0, %0, c9, c14, 0\n\t" :: "r"(1));
 	asm volatile ("mcr p15, 0, %0, c9, c12, 0\n\t" :: "r"(0x11));
@@ -67,11 +66,6 @@ NeoPixel::NeoPixel(uint32_t _numPixels, uint32_t _pin)
 	hitime0 = cpuFreq / 2500000;		// 0.4us
 	hitime1 = cpuFreq / 1250000;		// 0.8us
 	cycleTime = cpuFreq / 800000;	// 1.25us
-
-	fprintf(stderr, "cpuFreq = %d\n", cpuFreq);
-	fprintf(stderr, "cycleTime = %d\n", cycleTime);
-	fprintf(stderr, "numPixels = %d\n", numPixels);
-	fprintf(stderr, "pin = %d\n", pin);
 }
 
 NeoPixel::~NeoPixel() {
@@ -83,21 +77,32 @@ void IRAM_ATTR NeoPixel::show() {
 
 	// Wait for previous command to complete
 	// TODO wait for wrap around too if necessary
-	usleep(100);
+	pin.digitalWrite(GPIO::Low);
+	usleep(200);
 
-	InterruptDisable();
+#if defined(ESP8266)
+	taskDISABLE_INTERRUPTS();
+#elif defined(__QNXNTO__)
+	intrspin_t spinner;
+	InterruptLock(&spinner);
+#endif
 
 	cycles_t start = getClockCycles();
 	for (uint8_t *p = pixels; p != end; p++) {
 		for (uint8_t mask = 0x80; mask; mask >>= 1) {
-			gpio.digitalWrite(pin, GPIO::High);
+			pin.digitalWrite(GPIO::High);
 			cycles_t hitime = (*p & mask) ? hitime1 : hitime0;
 			while (getClockCycles() - start < hitime);
-			gpio.digitalWrite(pin, GPIO::Low);
+			pin.digitalWrite(GPIO::Low);
 			while (getClockCycles() - start < cycleTime);
 			start += cycleTime;
 		}
 	}
 
-	InterruptEnable();
+#if defined(ESP8266)
+	taskENABLE_INTERRUPTS();
+#elif defined(__QNXNTO__)
+	InterruptUnlock(&spinner);
+#endif
+
 }
