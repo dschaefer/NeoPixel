@@ -30,7 +30,7 @@ private:
 	GPIO pin;
 	uint8_t *pixels;
 	uint32_t numPixels;
-	cycles_t hitime0, hitime1, cycleTime;
+	cycles_t hitime0, hitime1, cycleTime, latchTime;
 };
 
 #endif // _NEOPIXEL_H_
