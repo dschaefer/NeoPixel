@@ -72,8 +72,6 @@ NeoPixel::~NeoPixel() {
 
 void IRAM_ATTR NeoPixel::show() {
 	uint8_t *end = pixels + numPixels * 3;
-	uint8_t *p = pixels;
-	uint8_t mask = 0x80;
 
 #if defined(ESP8266)
 	taskDISABLE_INTERRUPTS();
@@ -87,28 +85,19 @@ void IRAM_ATTR NeoPixel::show() {
 	InterruptDisable();
 #endif
 
-	// wait for latch
-	cycles_t start = getClockCycles();
-	while (getClockCycles() - start < latchTime);
-
-	start = getClockCycles();
-	while (true) {
-		pin.digitalWrite(GPIO::High);
-		if (!mask) {
-			if (p == end) {
-				pin.digitalWrite(GPIO::Low);
-				break;
+	cycles_t start = 0;
+	for (uint8_t *p = pixels; p != end; ++p) {
+		for (uint8_t mask = 0x80; mask; mask >>= 1) {
+			if (!start) {
+				start = getClockCycles();
 			}
-			p++;
-			mask = 0x80;
+			cycles_t hitime = (*p & mask) ? hitime1 : hitime0;
+			pin.digitalWrite(GPIO::High);
+			while (getClockCycles() - start < hitime);
+			pin.digitalWrite(GPIO::Low);
+			while (getClockCycles() - start < cycleTime);
+			start += cycleTime;
 		}
-
-		cycles_t hitime = (*p & mask) ? hitime1 : hitime0;
-		while (getClockCycles() - start < hitime);
-		pin.digitalWrite(GPIO::Low);
-		while (getClockCycles() - start < cycleTime);
-		mask >>= 1;
-		start += cycleTime;
 	}
 
 #if defined(ESP8266)
@@ -117,6 +106,7 @@ void IRAM_ATTR NeoPixel::show() {
 	InterruptEnable();
 #endif
 
-	// wait for latch
-	//while (getClockCycles() - start < latchTime);
+	// make sure latch occurred
+	cycles_t lstart = getClockCycles();
+	while (getClockCycles() - lstart < latchTime);
 }
