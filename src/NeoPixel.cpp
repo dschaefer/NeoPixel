@@ -72,6 +72,8 @@ NeoPixel::~NeoPixel() {
 
 void IRAM_ATTR NeoPixel::show() {
 	uint8_t *end = pixels + numPixels * 3;
+	uint8_t *p = pixels;
+	uint8_t mask = 0x80;
 
 #if defined(ESP8266)
 	taskDISABLE_INTERRUPTS();
@@ -85,19 +87,22 @@ void IRAM_ATTR NeoPixel::show() {
 	InterruptDisable();
 #endif
 
-	cycles_t start = 0;
-	for (uint8_t *p = pixels; p != end; ++p) {
-		for (uint8_t mask = 0x80; mask; mask >>= 1) {
-			cycles_t hitime = (*p & mask) ? hitime1 : hitime0;
-			if (!start) {
-				start = getClockCycles();
+	cycles_t start = getClockCycles();
+	while (true) {
+		if (!mask) {
+			mask = 0x80;
+			p++;
+			if (p == end) {
+				break;
 			}
-			pin.digitalWrite(GPIO::High);
-			while (getClockCycles() - start < hitime);
-			pin.digitalWrite(GPIO::Low);
-			while (getClockCycles() - start < cycleTime);
-			start += cycleTime;
 		}
+		cycles_t hitime = (*p & mask) ? hitime1 : hitime0;
+		pin.digitalWrite(GPIO::High);
+		while (getClockCycles() - start < hitime);
+		pin.digitalWrite(GPIO::Low);
+		while (getClockCycles() - start < cycleTime);
+		mask >>= 1;
+		start += cycleTime;
 	}
 
 #if defined(ESP8266)
