@@ -88,10 +88,10 @@ void IRAM_ATTR NeoPixel::show() {
 	cycles_t start = 0;
 	for (uint8_t *p = pixels; p != end; ++p) {
 		for (uint8_t mask = 0x80; mask; mask >>= 1) {
+			cycles_t hitime = (*p & mask) ? hitime1 : hitime0;
 			if (!start) {
 				start = getClockCycles();
 			}
-			cycles_t hitime = (*p & mask) ? hitime1 : hitime0;
 			pin.digitalWrite(GPIO::High);
 			while (getClockCycles() - start < hitime);
 			pin.digitalWrite(GPIO::Low);
